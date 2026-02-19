@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tradovate Copy Trading</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            color: #fff;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        h1 {
+            font-size: 2.5rem;
+            background: linear-gradient(90deg, #00d4ff, #7b2ff7);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+        }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 8px 20px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 0.9rem;
+        }
+        
+        .status-running {
+            background: #00c853;
+            color: #fff;
+        }
+        
+        .status-stopped {
+            background: #ff5252;
+            color: #fff;
+        }
+        
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        @media (max-width: 768px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .card {
+            background: rgba(255,255,255,0.05);
+            border-radius: 15px;
+            padding: 25px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .card h2 {
+            font-size: 1.3rem;
+            margin-bottom: 20px;
+            color: #00d4ff;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 0.9rem;
+            color: #aaa;
+        }
+        
+        input {
+            width: 100%;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid rgba(255,255,255,0.2);
+            background: rgba(255,255,255,0.1);
+            color: #fff;
+            font-size: 1rem;
+        }
+        
+        input:focus {
+            outline: none;
+            border-color: #00d4ff;
+        }
+        
+        .btn {
+            padding: 15px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            width: 100%;
+            margin-top: 10px;
+        }
+        
+        .btn-start {
+            background: linear-gradient(90deg, #00c853, #00e676);
+            color: #fff;
+        }
+        
+        .btn-start:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(0,200,83,0.4);
+        }
+        
+        .btn-stop {
+            background: linear-gradient(90deg, #ff5252, #ff1744);
+            color: #fff;
+        }
+        
+        .btn-stop:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(255,82,82,0.4);
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        th {
+            color: #00d4ff;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+        }
+        
+        td {
+            font-size: 0.9rem;
+        }
+        
+        .buy {
+            color: #00e676;
+        }
+        
+        .sell {
+            color: #ff5252;
+        }
+        
+        .log-container {
+            background: #0d1117;
+            border-radius: 8px;
+            padding: 15px;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: 'Monaco', 'Consolas', monospace;
+            font-size: 0.85rem;
+        }
+        
+        .log-entry {
+            padding: 5px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            color: #aaa;
+        }
+        
+        .log-entry:first-child {
+            color: #fff;
+        }
+        
+        .balance-card {
+            background: linear-gradient(135deg, #7b2ff7, #00d4ff);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        .balance-amount {
+            font-size: 2rem;
+            font-weight: bold;
+        }
+        
+        .balance-label {
+            opacity: 0.8;
+            font-size: 0.9rem;
+        }
+        
+        .info-box {
+            background: rgba(0,212,255,0.1);
+            border: 1px solid rgba(0,212,255,0.3);
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🔄 Tradovate Copy Trading</h1>
+            <span id="statusBadge" class="status-badge status-stopped">DETENIDO</span>
+        </header>
+        
+        <div class="info-box">
+            <strong>ℹ️ Cómo usar:</strong><br>
+            1. Ingresa tus credenciales de Tradovate (cuenta master y follower)<br>
+            2. Ajusta el ratio si deseas copiar solo un %<br>
+            3. Presiona "INICIAR COPY TRADING"<br>
+            4. Las posiciones se sincronizarán automáticamente
+        </div>
+        
+        <div class="grid">
+            <div class="card">
+                <h2>📋 Configuración</h2>
+                <div class="form-group">
+                    <label>📧 Email Cuenta MASTER</label>
+                    <input type="email" id="masterEmail" placeholder="tu@email.com">
+                </div>
+                <div class="form-group">
+                    <label>🔑 Password Cuenta MASTER</label>
+                    <input type="password" id="masterPassword" placeholder="Password master">
+                </div>
+                <div class="form-group">
+                    <label>📧 Email Cuenta FOLLOWER</label>
+                    <input type="email" id="followerEmail" placeholder="tu@email.com">
+                </div>
+                <div class="form-group">
+                    <label>🔑 Password Cuenta FOLLOWER</label>
+                    <input type="password" id="followerPassword" placeholder="Password follower">
+                </div>
+                <div class="form-group">
+                    <label>📊 Ratio de Copy (%)</label>
+                    <input type="number" id="ratio" value="100" min="1" max="100">
+                </div>
+                <button id="startBtn" class="btn btn-start" onclick="startCopy()">🚀 INICIAR COPY TRADING</button>
+                <button id="stopBtn" class="btn btn-stop" onclick="stopCopy()" style="display:none;">⏹️ DETENER</button>
+            </div>
+            
+            <div class="card">
+                <h2>📊 Estado</h2>
+                <div class="grid" style="grid-template-columns: 1fr 1fr;">
+                    <div class="balance-card">
+                        <div class="balance-amount" id="masterBalance">$0</div>
+                        <div class="balance-label">Master Account</div>
+                    </div>
+                    <div class="balance-card">
+                        <div class="balance-amount" id="followerBalance">$0</div>
+                        <div class="balance-label">Follower Account</div>
+                    </div>
+                </div>
+                
+                <h3>📈 Posiciones</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Cuenta</th>
+                            <th>Símbolo</th>
+                            <th>Cantidad</th>
+                            <th>Side</th>
+                        </tr>
+                    </thead>
+                    <tbody id="positionsTable">
+                        <tr>
+                            <td colspan="4" style="text-align:center;color:#666;">Sin posiciones</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <div class="card">
+            <h2>📝 Logs</h2>
+            <div class="log-container" id="logs">
+                <div class="log-entry">Esperando inicio...</div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let running = false;
+        
+        function startCopy() {
+            const masterEmail = document.getElementById('masterEmail').value;
+            const masterPassword = document.getElementById('masterPassword').value;
+            const followerEmail = document.getElementById('followerEmail').value;
+            const followerPassword = document.getElementById('followerPassword').value;
+            const ratio = document.getElementById('ratio').value;
+            
+            if (!masterEmail || !masterPassword || !followerEmail || !followerPassword) {
+                alert('Por favor completa todos los campos');
+                return;
+            }
+            
+            document.getElementById('startBtn').disabled = true;
+            document.getElementById('startBtn').innerText = '⏳ Iniciando...';
+            
+            fetch('/api/start', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    master_email: masterEmail,
+                    master_password: masterPassword,
+                    follower_email: followerEmail,
+                    follower_password: followerPassword,
+                    ratio: ratio / 100
+                })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    running = true;
+                    updateUI();
+                    addLog('✅ Copy trading iniciado correctamente');
+                } else {
+                    alert('Error: ' + data.message);
+                    document.getElementById('startBtn').disabled = false;
+                    document.getElementById('startBtn').innerText = '🚀 INICIAR COPY TRADING';
+                }
+            })
+            .catch(err => {
+                alert('Error de conexión');
+                document.getElementById('startBtn').disabled = false;
+            });
+        }
+        
+        function stopCopy() {
+            fetch('/api/stop', {method: 'POST'})
+            .then(res => res.json())
+            .then(data => {
+                running = false;
+                updateUI();
+                addLog('⏹️ Copy trading detenido');
+            });
+        }
+        
+        function updateUI() {
+            const statusBadge = document.getElementById('statusBadge');
+            const startBtn = document.getElementById('startBtn');
+            const stopBtn = document.getElementById('stopBtn');
+            
+            if (running) {
+                statusBadge.className = 'status-badge status-running';
+                statusBadge.innerText = 'ACTIVO';
+                startBtn.style.display = 'none';
+                stopBtn.style.display = 'block';
+            } else {
+                statusBadge.className = 'status-badge status-stopped';
+                statusBadge.innerText = 'DETENIDO';
+                startBtn.style.display = 'block';
+                startBtn.disabled = false;
+                startBtn.innerText = '🚀 INICIAR COPY TRADING';
+                stopBtn.style.display = 'none';
+            }
+        }
+        
+        function addLog(msg) {
+            const logs = document.getElementById('logs');
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            entry.innerText = msg;
+            logs.insertBefore(entry, logs.firstChild);
+        }
+        
+        function updateStatus() {
+            fetch('/api/status')
+            .then(res => res.json())
+            .then(data => {
+                // Update logs
+                data.logs.forEach(log => addLog(log));
+                
+                // Update positions
+                const tbody = document.getElementById('positionsTable');
+                let html = '';
+                
+                if (data.positions.master && data.positions.master.length > 0) {
+                    data.positions.master.forEach(p => {
+                        const sideClass = p.side === 'Buy' ? 'buy' : 'sell';
+                        html += `<tr><td>Master</td><td>${p.symbol}</td><td>${p.quantity}</td><td class="${sideClass}">${p.side}</td></tr>`;
+                    });
+                }
+                
+                if (data.positions.follower && data.positions.follower.length > 0) {
+                    data.positions.follower.forEach(p => {
+                        const sideClass = p.side === 'Buy' ? 'buy' : 'sell';
+                        html += `<tr><td>Follower</td><td>${p.symbol}</td><td>${p.quantity}</td><td class="${sideClass}">${p.side}</td></tr>`;
+                    });
+                }
+                
+                if (!html) {
+                    html = '<tr><td colspan="4" style="text-align:center;color:#666;">Sin posiciones</td></tr>';
+                }
+                
+                tbody.innerHTML = html;
+                
+                // Update balances
+                if (data.balance.master && data.balance.master.json) {
+                    document.getElementById('masterBalance').innerText = '$' + (data.balance.master.json.balance || 0);
+                }
+                if (data.balance.follower && data.balance.follower.json) {
+                    document.getElementById('followerBalance').innerText = '$' + (data.balance.follower.json.balance || 0);
+                }
+            });
+        }
+        
+        // Update status every 5 seconds
+        setInterval(updateStatus, 5000);
+        updateStatus();
+    </script>
+</body>
+</html>
