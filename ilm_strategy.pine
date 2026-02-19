@@ -1,0 +1,57 @@
+//@version=6
+strategy("ILM Strategy", overlay=true, default_qty_type=strategy.percent_of_equity, default_qty_value=10, slippage=1)
+
+// ============== INPUTS ==============
+group1 = "ILM Settings"
+lookback = input.int(20, "Swing Lookback", group=group1)
+fvgBuffer = input.float(0.5, "FVG Buffer %", group=group1)
+
+// ============== SWING HIGH/LOW ==============
+swingHigh = ta.highest(high, lookback)
+swingLow = ta.lowest(low, lookback)
+
+// ============== LIQUIDITY ZONES ==============
+var float buySideLiquidity = na
+var float sellSideLiquidity = na
+
+// Update liquidity on new day
+if (dayofweek != dayofweek[1])
+    buySideLiquidity := swingHigh
+    sellSideLiquidity := swingLow
+
+// ============== SWEEP DETECTION ==============
+buySideSweep = low <= buySideLiquidity and close > buySideLiquidity
+sellSideSweep = high >= sellSideLiquidity and close < sellSideLiquidity
+
+// ============== FVG (FAIR VALUE GAP) ==============
+bullishFVG = low[2] > high[1] * (1 - fvgBuffer/100)
+bearishFVG = high[2] < low[1] * (1 + fvgBuffer/100)
+
+// ============== ENTRY SIGNALS ==============
+longSignal = buySideSweep and bullishFVG
+shortSignal = sellSideSweep and bearishFVG
+
+// ============== PLOTTING ==============
+plot(buySideLiquidity, "Buy Side Liquidity", color=color.green, linewidth=2, style=plot.style_line)
+plot(sellSideLiquidity, "Sell Side Liquidity", color=color.red, linewidth=2, style=plot.style_line)
+
+plotshape(longSignal, title="Long Signal", text="LONG\nILM", style=shape.labelup, location=location.belowbar, color=color.green, textcolor=color.white, size=size.tiny)
+plotshape(shortSignal, title="Short Signal", text="SHORT\nILM", style=shape.labeldown, location=location.abovebar, color=color.red, textcolor=color.white, size=size.tiny)
+
+// ============== ALERTS ==============
+alertcondition(longSignal, "ILM Long Entry", "ILM: Buy side sweep + FVG detectado")
+alertcondition(shortSignal, "ILM Short Entry", "ILM: Sell side sweep + FVG detectado")
+
+// ============== STRATEGY ENTRIES ==============
+if (longSignal)
+    strategy.entry("ILM_Long", strategy.long)
+
+if (shortSignal)
+    strategy.entry("ILM_Short", strategy.short)
+
+// ============== EXIT RULES ==============
+if (shortSignal and strategy.position_size > 0)
+    strategy.close("ILM_Long")
+
+if (longSignal and strategy.position_size < 0)
+    strategy.close("ILM_Short")

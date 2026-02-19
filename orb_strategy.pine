@@ -1,0 +1,121 @@
+//@version=6
+strategy(
+     "ORB Strategy", 
+     overlay=true, 
+     default_qty_type=strategy.percent_of_equity, 
+     default_qty_value=10,
+     slippage=1
+)
+
+// ============== INPUTS ==============
+group1 = "ORB Settings"
+orbStart = input.time(timestamp("09:30 +0000"), "ORB Start NY", group=group1)
+orbEnd = input.time(timestamp("09:45 +0000"), "ORB End NY (15min)", group=group1)
+sessionEnd = input.time(timestamp("16:00 +0000"), "Session End NY", group=group1)
+
+group2 = "Risk Management"
+rrRatio = input.float(2.0, "Risk:Reward Ratio", group=group2)
+atrMultiplier = input.float(2.0, "ATR Stop Multiplier", group=group2)
+
+// ============== ORB RANGE ==============
+var float orbHigh = na
+var float orbLow = na
+var bool orbFormed = false
+var int orbBarIndex = na
+
+// Reset at session start
+newSession = time[1] < orbStart and time >= orbStart
+
+if (newSession)
+    orbFormed := false
+
+// Build ORB during formation window
+if (time >= orbStart and time <= orbEnd and not orbFormed)
+    if (na(orbHigh) or high > orbHigh)
+        orbHigh := high
+    if (na(orbLow) or low < orbLow)
+        orbLow := low
+    
+    // Check if ORB is complete at end of window
+    if (time >= orbEnd)
+        orbFormed := true
+        orbBarIndex := bar_index
+
+// ============== BREAKOUT DETECTION ==============
+breakoutUp = close > orbHigh and orbFormed
+breakoutDown = close < orbLow and orbFormed
+
+// ============== ATR FOR STOP ==============
+atr = ta.atr(14)
+stopDistance = atr * atrMultiplier
+
+// ============== ENTRY, STOP & TARGET ==============
+var float entryPrice = na
+var float stopLoss = na
+var float takeProfit = na
+var string tradeDirection = ""
+
+if (breakoutUp and strategy.position_size == 0)
+    entryPrice := close
+    stopLoss := orbLow - stopDistance
+    takeProfit := entryPrice + (entryPrice - stopLoss) * rrRatio
+    tradeDirection := "LONG"
+    
+if (breakoutDown and strategy.position_size == 0)
+    entryPrice := close
+    stopLoss := orbHigh + stopDistance
+    takeProfit := entryPrice - (stopLoss - entryPrice) * rrRatio
+    tradeDirection := "SHORT"
+
+// ============== PLOTTING ==============
+plot(orbFormed ? orbHigh : na, "ORB High", color=color.green, linewidth=2, style=plot.style_line)
+plot(orbFormed ? orbLow : na, "ORB Low", color=color.red, linewidth=2, style=plot.style_line)
+
+// Fill the range box
+var box orbBox = na
+if (orbFormed and na(orbBox))
+    orbBox := box.new(bar_index - 15, orbHigh, bar_index, orbLow, border_color=color.gray, bgcolor=color.new(color.gray, 90))
+
+plotshape(breakoutUp, title="Breakout Up", text="BUY", style=shape.labelup, location=location.abovebar, color=color.lime, textcolor=color.black, size=size.tiny)
+plotshape(breakoutDown, title="Breakout Down", text="SELL", style=shape.labeldown, location=location.belowbar, color=color.red, textcolor=color.white, size=size.tiny)
+
+// Plot stop and target levels
+plot(strategy.position_size > 0 ? stopLoss : na, "Stop Loss", color=color.red, linewidth=1, style=plot.style_line)
+plot(strategy.position_size > 0 ? takeProfit : na, "Take Profit", color=color.green, linewidth=1, style=plot.style_line)
+plot(strategy.position_size < 0 ? stopLoss : na, "Stop Loss", color=color.red, linewidth=1, style=plot.style_line)
+plot(strategy.position_size < 0 ? takeProfit : na, "Take Profit", color=color.green, linewidth=1, style=plot.style_line)
+
+// ============== ALERTS ==============
+alertcondition(breakoutUp, "ORB Long", "ORB: Breakout arriba del rango - BUY")
+alertcondition(breakoutDown, "ORB Short", "ORB: Breakout abajo del rango - SELL")
+
+// ============== STRATEGY ENTRIES ==============
+if (breakoutUp)
+    strategy.entry("ORB_Long", strategy.long)
+
+if (breakoutDown)
+    strategy.entry("ORB_Short", strategy.short)
+
+// ============== EXIT ==============
+// Stop/Target exits
+if (strategy.position_size > 0)
+    strategy.exit("ORB_Exit_Long", "ORB_Long", stop=stopLoss, limit=takeProfit)
+
+if (strategy.position_size < 0)
+    strategy.exit("ORB_Exit_Short", "ORB_Short", stop=stopLoss, limit=takeProfit)
+
+// Close at end of session
+inSession = time >= orbStart and time <= sessionEnd
+if (not inSession and strategy.position_size != 0)
+    strategy.close_all()
+
+// ============== INFO TABLE ==============
+var table infoTable = table.new(position.top_right, 2, 3, frame_color=color.gray)
+
+if (barstate.islast)
+    table.cell(infoTable, 0, 0, "ORB High", text_color=color.white)
+    table.cell(infoTable, 1, 0, str.tostring(orbHigh, "#.##"), text_color=color.green)
+    table.cell(infoTable, 0, 1, "ORB Low", text_color=color.white)
+    table.cell(infoTable, 1, 1, str.tostring(orbLow, "#.##"), text_color=color.red)
+    table.cell(infoTable, 0, 2, "Range", text_color=color.white)
+    table.cell(infoTable, 1, 2, str.tostring(orbHigh - orbLow, "#.##"), text_color=color.gray)
