@@ -115,7 +115,8 @@
             font-size: 0.9rem;
         }
         .help-text { font-size: 0.8rem; color: #888; margin-top: 5px; }
-        .help-text a { color: #00d4ff; }
+        .row { display: flex; gap: 10px; }
+        .row input { flex: 1; }
     </style>
 </head>
 <body>
@@ -126,43 +127,42 @@
         </header>
         
         <div class="info-box">
-            <strong>ℹ️ Cómo obtener tus credenciales:</strong><br>
-            1. Ve a <a href="https://tradovate.com" target="_blank" style="color:#00d4ff">Tradovate Dashboard</a><br>
-            2. Settings → API → Create API Key<br>
-            3. Copia la API Key y pégala aquí<br>
-            <em>Usa la misma cuenta para master y follower si es para probar, o dos cuentas diferentes</em>
+            <strong>ℹ️ Requisitos:</strong><br>
+            • Cuenta Tradovate con API Access ($30/mes o gratis con funding)<br>
+            • Generate API Key en Tradovate Dashboard → Settings → API<br>
+            • Demo: usa https://demo.tradovateapi.com | Live: usa https://live.tradovateapi.com
         </div>
         
         <div class="grid">
             <div class="card">
                 <h2>📋 Cuenta MASTER</h2>
                 <div class="form-group">
-                    <label>Tipo de Auth</label>
-                    <select id="masterType" onchange="updatePlaceholder('master')">
-                        <option value="api_key">API Key</option>
-                        <option value="token">Access Token</option>
-                    </select>
+                    <label>📧 Email / Username</label>
+                    <input type="text" id="masterName" placeholder="tu@email.com">
                 </div>
                 <div class="form-group">
-                    <label id="masterLabel">API Key</label>
-                    <input type="password" id="masterValue" placeholder="Pega tu API Key aquí">
-                    <p class="help-text" id="masterHelp">Copia la API Key de Tradovate Dashboard → Settings → API</p>
+                    <label>🔑 Password</label>
+                    <input type="password" id="masterPassword" placeholder="Tu password">
+                </div>
+                <div class="form-group">
+                    <label>🔐 API Secret (opcional)</label>
+                    <input type="text" id="masterSec" placeholder="API Secret (si tienes)">
                 </div>
             </div>
             
             <div class="card">
                 <h2>📋 Cuenta FOLLOWER</h2>
                 <div class="form-group">
-                    <label>Tipo de Auth</label>
-                    <select id="followerType" onchange="updatePlaceholder('follower')">
-                        <option value="api_key">API Key</option>
-                        <option value="token">Access Token</option>
-                    </select>
+                    <label>📧 Email / Username</label>
+                    <input type="text" id="followerName" placeholder="tu@email.com">
                 </div>
                 <div class="form-group">
-                    <label id="followerLabel">API Key</label>
-                    <input type="password" id="followerValue" placeholder="Pega tu API Key aquí">
-                    <p class="help-text" id="followerHelp">Copia la API Key de Tradovate Dashboard → Settings → API</p>
+                    <label>🔑 Password</label>
+                    <input type="password" id="followerPassword" placeholder="Tu password">
+                </div>
+                <div class="form-group">
+                    <label>🔐 API Secret (opcional)</label>
+                    <input type="text" id="followerSec" placeholder="API Secret (si tienes)">
                 </div>
             </div>
         </div>
@@ -215,32 +215,17 @@
     <script>
         let running = false;
         
-        function updatePlaceholder(type) {
-            const select = document.getElementById(type + 'Type');
-            const label = document.getElementById(type + 'Label');
-            const help = document.getElementById(type + 'Help');
-            const input = document.getElementById(type + 'Value');
-            
-            if (select.value === 'api_key') {
-                label.innerText = 'API Key';
-                input.placeholder = 'Pega tu API Key aquí';
-                help.innerText = 'Copia la API Key de Tradovate Dashboard → Settings → API';
-            } else {
-                label.innerText = 'Access Token';
-                input.placeholder = 'Pega tu Access Token aquí';
-                help.innerText = 'Usa un access token si lo tienes';
-            }
-        }
-        
         function startCopy() {
-            const masterType = document.getElementById('masterType').value;
-            const masterValue = document.getElementById('masterValue').value;
-            const followerType = document.getElementById('followerType').value;
-            const followerValue = document.getElementById('followerValue').value;
+            const masterName = document.getElementById('masterName').value;
+            const masterPassword = document.getElementById('masterPassword').value;
+            const masterSec = document.getElementById('masterSec').value;
+            const followerName = document.getElementById('followerName').value;
+            const followerPassword = document.getElementById('followerPassword').value;
+            const followerSec = document.getElementById('followerSec').value;
             const ratio = document.getElementById('ratio').value;
             
-            if (!masterValue || !followerValue) {
-                alert('Por favor completa las credenciales');
+            if (!masterName || !masterPassword || !followerName || !followerPassword) {
+                alert('Por favor completa email y password de ambas cuentas');
                 return;
             }
             
@@ -251,10 +236,14 @@
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({
-                    master_type: masterType,
-                    master_value: masterValue,
-                    follower_type: followerType,
-                    follower_value: followerValue,
+                    master_name: masterName,
+                    master_password: masterPassword,
+                    master_cid: 0,
+                    master_sec: masterSec,
+                    follower_name: followerName,
+                    follower_password: followerPassword,
+                    follower_cid: 0,
+                    follower_sec: followerSec,
                     ratio: ratio / 100
                 })
             })
@@ -271,7 +260,7 @@
                 }
             })
             .catch(err => {
-                alert('Error de conexión');
+                alert('Error de conexión: ' + err);
                 document.getElementById('startBtn').disabled = false;
             });
         }

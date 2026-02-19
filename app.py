@@ -6,33 +6,43 @@ import time
 app = Flask(__name__)
 
 # ============== TRADOVATE CLIENT ==============
-TRADOVATE_API = "https://api.tradovate.com/v1"
-
 class TradovateClient:
-    def __init__(self, api_key=None, access_token=None):
-        self.api_key = api_key
-        self.access_token = access_token
+    def __init__(self, name, password, cid=0, sec=None):
+        self.name = name
+        self.password = password
+        self.cid = cid
+        self.sec = sec
+        self.access_token = None
         self.account_id = None
+    
+    def authenticate(self):
+        """Auth con credenciales + API secret"""
+        url = "https://live.tradovateapi.com/v1/auth/accesstokenrequest"
         
-    def authenticate_with_api_key(self, api_key):
-        """Autenticar con API Key"""
+        payload = {
+            "name": self.name,
+            "password": self.password,
+            "appId": "TradovateCopyTrading",
+            "appVersion": "1.0",
+            "cid": self.cid,
+            "sec": self.sec or ""
+        }
+        
         try:
-            response = requests.post(
-                f"{TRADOVATE_API}/authenticate",
-                json={"authorizationToken": api_key},
-                timeout=10
-            )
+            response = requests.post(url, json=payload, timeout=15)
             if response.status_code == 200:
                 data = response.json()
-                self.access_token = data.get('accessToken') or data.get('access_token')
+                self.access_token = data.get('accessToken')
                 return True
-            return False
+            else:
+                print(f"Auth error: {response.status_code} - {response.text}")
+                return False
         except Exception as e:
-            print(f"Auth error: {e}")
+            print(f"Auth exception: {e}")
             return False
     
     def authenticate_with_token(self, access_token):
-        """Usar access token directo"""
+        """Usar access token existente"""
         self.access_token = access_token
         return True
     
@@ -43,7 +53,8 @@ class TradovateClient:
         }
     
     def get_accounts(self):
-        response = requests.get(f"{TRADOVATE_API}/account/list", headers=self.get_headers())
+        url = "https://live.tradovateapi.com/v1/account/list"
+        response = requests.get(url, headers=self.get_headers())
         return response.json() if response.status_code == 200 else {}
     
     def get_account_id(self):
@@ -54,30 +65,31 @@ class TradovateClient:
     def get_positions(self, account_id):
         if not account_id:
             return []
-        response = requests.get(f"{TRADOVATE_API}/position/list?accountId={account_id}", headers=self.get_headers())
+        url = f"https://live.tradovateapi.com/v1/position/list?accountId={account_id}"
+        response = requests.get(url, headers=self.get_headers())
         data = response.json()
         return data.get('json', [])
     
     def get_account_info(self, account_id):
-        response = requests.get(f"{TRADOVATE_API}/account/{account_id}", headers=self.get_headers())
+        url = f"https://live.tradovateapi.com/v1/account/{account_id}"
+        response = requests.get(url, headers=self.get_headers())
         return response.json() if response.status_code == 200 else {}
     
     def place_order(self, symbol, quantity, side, account_id, order_type="Market"):
+        url = "https://live.tradovateapi.com/v1/order/placeorder"
+        
         order = {
             "accountId": account_id,
+            "accountSpec": self.name,
             "symbol": symbol,
             "quantity": int(quantity),
             "side": side,
             "orderType": order_type,
-            "route": "TRADE"
+            "isAutomated": True
         }
+        
         try:
-            response = requests.post(
-                f"{TRADOVATE_API}/order/placeOrder",
-                headers=self.get_headers(),
-                json=order,
-                timeout=10
-            )
+            response = requests.post(url, headers=self.get_headers(), json=order, timeout=10)
             return response.json() if response.status_code == 200 else None
         except:
             return None
@@ -94,29 +106,24 @@ class CopyEngine:
         self.positions = {}
         self.balance = {}
         self.logs = []
+        self.ratio = 1.0
     
     def log(self, msg):
         self.logs.insert(0, f"[{time.strftime('%H:%M:%S')}] {msg}")
         self.logs = self.logs[:50]
     
-    def start(self, master_type, master_value, follower_type, follower_value, ratio=1.0):
-        """Iniciar con API Key o Access Token"""
+    def start(self, master_name, master_password, master_cid, master_sec, 
+              follower_name, follower_password, follower_cid, follower_sec, ratio=1.0):
         try:
             # Master
-            self.master = TradovateClient()
-            if master_type == "api_key":
-                if not self.master.authenticate_with_api_key(master_value):
-                    return False, "Error con API Key master"
-            else:
-                self.master.authenticate_with_token(master_value)
+            self.master = TradovateClient(master_name, master_password, master_cid, master_sec)
+            if not self.master.authenticate():
+                return False, "Error autenticando cuenta master"
             
             # Follower
-            self.follower = TradovateClient()
-            if follower_type == "api_key":
-                if not self.follower.authenticate_with_api_key(follower_value):
-                    return False, "Error con API Key follower"
-            else:
-                self.follower.authenticate_with_token(follower_value)
+            self.follower = TradovateClient(follower_name, follower_password, follower_cid, follower_sec)
+            if not self.follower.authenticate():
+                return False, "Error autenticando cuenta follower"
             
             # Get accounts
             self.master_account = self.master.get_account_id()
@@ -169,15 +176,17 @@ class CopyEngine:
             follower_pos = follower_by_symbol.get(symbol)
             
             if follower_pos is None:
-                self.follower.place_order(symbol, qty, side, self.follower_account)
-                self.log(f"📋 Copiado: {side} {qty} {symbol}")
+                result = self.follower.place_order(symbol, qty, side, self.follower_account)
+                if result:
+                    self.log(f"📋 Copiado: {side} {qty} {symbol}")
             else:
                 follower_qty = follower_pos.get('quantity', 0)
                 if follower_qty != qty:
                     diff = qty - follower_qty
                     if diff != 0:
-                        self.follower.place_order(symbol, abs(diff), side, self.follower_account)
-                        self.log(f"🔄 Ajustado: {side} {abs(diff)} {symbol}")
+                        result = self.follower.place_order(symbol, abs(diff), side, self.follower_account)
+                        if result:
+                            self.log(f"🔄 Ajustado: {side} {abs(diff)} {symbol}")
         
         self.positions = {'master': master_positions, 'follower': follower_positions}
         
@@ -208,10 +217,14 @@ def index():
 def start():
     data = request.json
     success, msg = engine.start(
-        data.get('master_type'),      # "api_key" o "token"
-        data.get('master_value'),     # La API key o access token
-        data.get('follower_type'),
-        data.get('follower_value'),
+        data.get('master_name'),
+        data.get('master_password'),
+        int(data.get('master_cid', 0)),
+        data.get('master_sec'),
+        data.get('follower_name'),
+        data.get('follower_password'),
+        int(data.get('follower_cid', 0)),
+        data.get('follower_sec'),
         float(data.get('ratio', 1.0))
     )
     return jsonify({'success': success, 'message': msg})
