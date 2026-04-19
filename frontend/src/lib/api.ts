@@ -81,4 +81,9 @@ export const api = {
   groupStatus: (id: number) => request<GroupStatus>(`/api/groups/${id}/status`),
 
   stats: () => request<Stats>("/api/stats"),
+
+  oauthTradovateStatus: () =>
+    request<{ configured: boolean; client_id_set: boolean }>("/api/oauth/tradovate/status"),
+  oauthTradovateStartUrl: (label: string, env: "live" | "demo") =>
+    `/api/oauth/tradovate/start?label=${encodeURIComponent(label)}&env=${env}`,
 }

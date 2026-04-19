@@ -29,11 +29,12 @@ class TradovateAdapter(BrokerAdapter):
     def __init__(
         self,
         *,
-        name: str,
-        password: str,
-        cid: int,
-        sec: str,
+        name: str = "",
+        password: str = "",
+        cid: int = 0,
+        sec: str = "",
         env: str = "live",
+        access_token: str | None = None,
     ) -> None:
         s = get_settings()
         self._name = name
@@ -41,6 +42,9 @@ class TradovateAdapter(BrokerAdapter):
         self._cid = cid
         self._sec = sec
         self._env = env
+        # Pre-seeded OAuth token — skip password auth when present
+        if access_token:
+            self._token = access_token
         self._api_base = s.tradovate_api_base if env == "live" else s.tradovate_demo_api_base
         self._ws_url = s.tradovate_ws_url if env == "live" else s.tradovate_demo_ws_url
         self._app_id = s.app_id
@@ -63,6 +67,10 @@ class TradovateAdapter(BrokerAdapter):
 
     # ---------- REST ----------
     async def authenticate(self) -> None:
+        if self._token:
+            # Already have a token (OAuth path) — just resolve user_id
+            await self._resolve_user_id()
+            return
         url = f"{self._api_base}/auth/accesstokenrequest"
         payload = {
             "name": self._name,
@@ -80,6 +88,17 @@ class TradovateAdapter(BrokerAdapter):
             raise RuntimeError(f"Tradovate auth failed: {data}")
         self._token = token
         self._user_id = data.get("userId")
+
+    async def _resolve_user_id(self) -> None:
+        """Fetch user info to populate _user_id when using an OAuth token."""
+        try:
+            r = await self._client.get(
+                f"{self._api_base}/user/self", headers=self._headers()
+            )
+            if r.status_code == 200:
+                self._user_id = r.json().get("id")
+        except Exception:
+            pass
 
     def _headers(self) -> dict[str, str]:
         if not self._token:

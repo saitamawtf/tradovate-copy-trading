@@ -22,6 +22,14 @@ class Settings(BaseSettings):
     app_id: str = "CopyTradingApp"
     app_version: str = "0.1.0"
 
+    # Tradovate OAuth 2.0 (register at partner.tradovate.com)
+    tradovate_oauth_client_id: str = ""
+    tradovate_oauth_client_secret: str = ""
+    tradovate_oauth_redirect_uri: str = "http://localhost:8000/api/oauth/tradovate/callback"
+    # Authorization page (live) — override if using demo/partner env
+    tradovate_oauth_auth_url: str = "https://live.tradovateapi.com/auth/authorize"
+    tradovate_oauth_token_url: str = "https://live.tradovateapi.com/auth/oauthtoken"
+
     @property
     def db_path(self) -> Path:
         return Path(self.database_url.split(":///")[-1]).resolve()

@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import select
 
-from .api import accounts, groups, stats, ws
+from .api import accounts, groups, oauth, stats, ws
 from .config import get_settings
 from .copy.engine import CopyEngine
 from .db import SessionLocal, init_db
@@ -66,6 +66,7 @@ def create_app() -> FastAPI:
     app.include_router(groups.router)
     app.include_router(stats.router)
     app.include_router(ws.router)
+    app.include_router(oauth.router)
 
     @app.get("/api/health")
     async def health():
