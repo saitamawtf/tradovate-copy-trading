@@ -1,3 +1,136 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+:root {
+  --bg: #0a0d10;
+  --bg-1: #0e1216;
+  --bg-2: #121820;
+  --bg-3: #171e27;
+  --line: #1e2732;
+  --line-2: #283341;
+  --fg: #e6ecef;
+  --fg-dim: #8b97a3;
+  --fg-mute: #5a6670;
+  --accent: #2dd4bf;
+  --accent-dim: #0f766e;
+  --accent-bg: rgba(45, 212, 191, 0.08);
+  --long: #4ade80;
+  --short: #f87171;
+  --warn: #fbbf24;
+  --crit: #ef4444;
+  --chip: #0f151b;
+  --density-row: 36px;
+  --density-pad: 14px;
+}
+
+[data-density="dense"] {
+  --density-row: 28px;
+  --density-pad: 10px;
+}
+[data-density="spacious"] {
+  --density-row: 44px;
+  --density-pad: 18px;
+}
+
+[data-theme="light"] {
+  --bg: #f6f4ee;
+  --bg-1: #ffffff;
+  --bg-2: #faf8f2;
+  --bg-3: #f0ede4;
+  --line: #e4dfd2;
+  --line-2: #d1cab7;
+  --fg: #15171a;
+  --fg-dim: #5d636b;
+  --fg-mute: #8a8f97;
+  --accent-bg: rgba(15, 118, 110, 0.08);
+  --chip: #f0ede4;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: "Manrope", system-ui, sans-serif;
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+}
+
+.mono {
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+.num {
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+
+input,
+select,
+textarea {
+  font-family: inherit;
+  color: inherit;
+}
+
+button {
+  font-family: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+}
+
+button:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.scroll::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.scroll::-webkit-scrollbar-thumb {
+  background: var(--line-2);
+  border-radius: 3px;
+}
+.scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+@keyframes pulse-dot {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.4;
+    transform: scale(0.85);
+  }
+}
+@keyframes flicker {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}
+@keyframes row-flash {
+  0% {
+    background: var(--accent-bg);
+  }
+  100% {
+    background: transparent;
+  }
+}
+.flash {
+  animation: row-flash 1.2s ease-out;
+}
